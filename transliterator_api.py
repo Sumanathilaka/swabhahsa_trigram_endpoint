@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 import translator_fun
 
 app = FastAPI(
@@ -11,13 +11,12 @@ app = FastAPI(
 class TranslationRequest(BaseModel):
     sentence: str
     
-    model_config = ConfigDict(
-        json_schema_extra={
+    class Config:
+        schema_extra = {
             "example": {
                 "sentence": "hello world"
             }
         }
-    )
 
 @app.post("/translate")
 def translate_text(request: TranslationRequest):
@@ -33,6 +32,9 @@ def translate_text(request: TranslationRequest):
             "translated": translation
         }
     except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Translation error: {error_details}")
         raise HTTPException(status_code=500, detail=f"Translation error: {str(e)}")
 
 @app.get("/")
