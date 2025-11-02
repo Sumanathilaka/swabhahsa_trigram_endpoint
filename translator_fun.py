@@ -1,67 +1,53 @@
-import pickle
-import nltk
-import gzip
-from pathlib import Path
-import TranslaterLogic
-import requests
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+import translator_fun
 
-# Download required NLTK data
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt', quiet=True)
+app = FastAPI(
+    title="Sinhala Transliterator API", 
+    description="Trigram-based Sinhala transliterator", 
+    version="1.0"
+)
 
-APP_DIR = Path(__file__).parent.absolute()
-# Fixed Google Drive direct download link
-MODEL_URL = "https://drive.google.com/uc?export=download&id=1CaoGi4R0u4udNHmjBh1hsJdvkdDzN0dc"
-MODEL_PATH = APP_DIR / "trigramTrans.gz"
-_translator = None
+class TranslationRequest(BaseModel):
+    sentence: str
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "sentence": "hello world"
+            }
+        }
 
-def download_model():
-    """Download the model file from Google Drive"""
-    print(f"Downloading model from {MODEL_URL}...")
+@app.post("/translate")
+def translate_text(request: TranslationRequest):
+    """Translate a given sentence to Sinhala."""
     try:
-        response = requests.get(MODEL_URL, stream=True, timeout=60)
-        response.raise_for_status()
+        if not request.sentence or not request.sentence.strip():
+            raise HTTPException(status_code=400, detail="Sentence cannot be empty")
         
-        # Handle Google Drive's virus scan warning for large files
-        if 'Content-Disposition' not in response.headers:
-            # This might be a confirmation page, try to extract the confirm token
-            for key, value in response.cookies.items():
-                if key.startswith('download_warning'):
-                    params = {'confirm': value, 'id': '1CaoGi4R0u4udNHmjBh1hsJdvkdDzN0dc'}
-                    response = requests.get(MODEL_URL, params=params, stream=True, timeout=60)
-                    break
-        
-        MODEL_PATH.write_bytes(response.content)
-        print("Model downloaded successfully.")
+        translation = translator_fun.triGramTranslate(request.sentence)
+        return {
+            "success": True,
+            "original": request.sentence, 
+            "translated": translation
+        }
     except Exception as e:
-        print(f"Error downloading model: {e}")
-        raise
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Translation error: {error_details}")
+        raise HTTPException(status_code=500, detail=f"Translation error: {str(e)}")
 
-def load_translator():
-    global _translator
-    if _translator is None:
-        if not MODEL_PATH.exists():
-            download_model()
-        
-        print(f"Loading model from {MODEL_PATH}...")
-        with gzip.open(MODEL_PATH, "rb") as f:
-            _translator = pickle.load(f)
-        print("Translator loaded successfully.")
-    return _translator
+@app.get("/")
+def home():
+    return {
+        "message": "Welcome to the Sinhala Transliterator API",
+        "endpoints": {
+            "POST /translate": "Translate English text to Sinhala",
+            "GET /docs": "API documentation"
+        }
+    }
 
-
-def triGramTranslate(sentence):
-    """Translate sentence using trigram model"""
-    translator = load_translator()
-    tokens = nltk.word_tokenize(sentence.lower())
-    translated = translator.tag(tokens)
-
-    result = []
-    for token, trans in translated:
-        if trans == 'NNN':
-            result.append(TranslaterLogic.convertText(token))
-        else:
-            result.append(trans)
-    return " ".join(result)
+@app.get("/health")
+def health_check():
+    """Health check endpoint"""
+    return {"status": "healthy"}

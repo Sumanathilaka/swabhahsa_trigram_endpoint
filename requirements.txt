@@ -1,7 +1,10 @@
-# FastAPI and dependencies (updated for Python 3.13 compatibility)
-fastapi==0.104.1
-pydantic==2.5.0
-uvicorn[standard]==0.24.0
+
+# Use older but stable versions compatible with Python 3.11
+# These have pre-built wheels and don't require Rust compilation
+
+fastapi==0.100.0
+pydantic==1.10.12
+uvicorn[standard]==0.23.2
 
 # WSGI server
 gunicorn==21.2.0
@@ -12,6 +15,5 @@ nltk==3.8.1
 # HTTP requests
 requests==2.31.0
 
-# Optional - only if you need Flask
-# Flask==3.0.0
-# Werkzeug==3.0.1
+# Explicitly add typing-extensions for compatibility
+typing-extensions==4.7.1
