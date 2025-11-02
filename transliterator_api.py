@@ -1,5 +1,5 @@
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 import translator_fun
 
 app = FastAPI(
@@ -10,6 +10,14 @@ app = FastAPI(
 
 class TranslationRequest(BaseModel):
     sentence: str
+    
+    model_config = ConfigDict(
+        json_schema_extra={
+            "example": {
+                "sentence": "hello world"
+            }
+        }
+    )
 
 @app.post("/translate")
 def translate_text(request: TranslationRequest):
